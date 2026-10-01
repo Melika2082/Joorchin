@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>بازی جورچین</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Tahoma, Arial, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #15172b, #292c55);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .game {
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 34px;
+      margin-bottom: 10px;
+    }
+
+    .description {
+      color: #c9cbe8;
+      margin-bottom: 25px;
+    }
+
+    .info {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .info-box {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 12px;
+      border-radius: 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    .info-box span {
+      display: block;
+      font-size: 13px;
+      color: #bfc2df;
+      margin-bottom: 5px;
+    }
+
+    .info-box strong {
+      font-size: 20px;
+    }
+
+    .puzzle {
+      width: min(90vw, 420px);
+      height: min(90vw, 420px);
+      margin: auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      background: #10121f;
+      padding: 5px;
+      border-radius: 18px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .tile {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: clamp(28px, 8vw, 50px);
+      font-weight: bold;
+      background: linear-gradient(135deg, #6c63ff, #8f88ff);
+      border-radius: 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: 0.2s;
+      box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.15);
+    }
+
+    .tile:hover {
+      transform: scale(0.96);
+      filter: brightness(1.15);
+    }
+
+    .empty {
+      background: transparent;
+      box-shadow: none;
+      cursor: default;
+    }
+
+    .buttons {
+      margin-top: 25px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    button {
+      border: none;
+      padding: 13px 25px;
+      border-radius: 12px;
+      background: #6c63ff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #8179ff;
+      transform: translateY(-2px);
+    }
+
+    .message {
+      min-height: 30px;
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #8ff0c4;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="game">
+
+    <h1>🧩 جورچین</h1>
+
+    <p class="description">
+      اعداد را به ترتیب از ۱ تا ۸ مرتب کن
+    </p>
+
+    <div class="info">
+
+      <div class="info-box">
+        <span>حرکت</span>
+        <strong id="moves">0</strong>
+      </div>
+
+      <div class="info-box">
+        <span>زمان</span>
+        <strong id="time">00:00</strong>
+      </div>
+
+    </div>
+
+    <div id="puzzle" class="puzzle"></div>
+
+    <div class="buttons">
+      <button onclick="shufflePuzzle()">🔀 شروع دوباره</button>
+    </div>
+
+    <div id="message" class="message"></div>
+
+  </div>
+
+
+  <script>
+
+    const puzzle = document.getElementById("puzzle");
+    const movesElement = document.getElementById("moves");
+    const timeElement = document.getElementById("time");
+    const messageElement = document.getElementById("message");
+
+    let tiles = [];
+    let moves = 0;
+    let seconds = 0;
+    let timer = null;
+    let gameStarted = false;
+
+
+    function createPuzzle() {
+
+      puzzle.innerHTML = "";
+
+      tiles.forEach((number, index) => {
+
+        const tile = document.createElement("div");
+
+        tile.classList.add("tile");
+
+        if (number === 0) {
+          tile.classList.add("empty");
+        } else {
+          tile.textContent = number;
+          tile.addEventListener("click", () => moveTile(index));
+        }
+
+        puzzle.appendChild(tile);
+
+      });
+
+    }
+
+
+    function moveTile(index) {
+
+      const emptyIndex = tiles.indexOf(0);
+
+      const row = Math.floor(index / 3);
+      const col = index % 3;
+
+      const emptyRow = Math.floor(emptyIndex / 3);
+      const emptyCol = emptyIndex % 3;
+
+      const isAdjacent =
+        (row === emptyRow && Math.abs(col - emptyCol) === 1) ||
+        (col === emptyCol && Math.abs(row - emptyRow) === 1);
+
+      if (!isAdjacent) {
+        return;
+      }
+
+      if (!gameStarted) {
+        startTimer();
+        gameStarted = true;
+      }
+
+      [tiles[index], tiles[emptyIndex]] =
+        [tiles[emptyIndex], tiles[index]];
+
+      moves++;
+
+      movesElement.textContent = moves;
+
+      createPuzzle();
+
+      checkWin();
+    }
+
+
+    function shufflePuzzle() {
+
+      stopTimer();
+
+      tiles = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+
+      for (let i = 0; i < 200; i++) {
+
+        const emptyIndex = tiles.indexOf(0);
+
+        const possibleMoves = [];
+
+        const row = Math.floor(emptyIndex / 3);
+        const col = emptyIndex % 3;
+
+        if (row > 0)
+          possibleMoves.push(emptyIndex - 3);
+
+        if (row < 2)
+          possibleMoves.push(emptyIndex + 3);
+
+        if (col > 0)
+          possibleMoves.push(emptyIndex - 1);
+
+        if (col < 2)
+          possibleMoves.push(emptyIndex + 1);
+
+        const randomIndex =
+          possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+
+        [tiles[emptyIndex], tiles[randomIndex]] =
+          [tiles[randomIndex], tiles[emptyIndex]];
+      }
+
+      moves = 0;
+      seconds = 0;
+      gameStarted = false;
+
+      movesElement.textContent = "0";
+      timeElement.textContent = "00:00";
+      messageElement.textContent = "";
+
+      createPuzzle();
+    }
+
+
+    function startTimer() {
+
+      timer = setInterval(() => {
+
+        seconds++;
+
+        const minutes =
+          Math.floor(seconds / 60)
+            .toString()
+            .padStart(2, "0");
+
+        const secs =
+          (seconds % 60)
+            .toString()
+            .padStart(2, "0");
+
+        timeElement.textContent =
+          `${minutes}:${secs}`;
+
+      }, 1000);
+
+    }
+
+
+    function stopTimer() {
+
+      if (timer !== null) {
+        clearInterval(timer);
+        timer = null;
+      }
+
+    }
+
+
+    function checkWin() {
+
+      const winningOrder =
+        [1, 2, 3, 4, 5, 6, 7, 8, 0];
+
+      const won =
+        tiles.every((value, index) =>
+          value === winningOrder[index]
+        );
+
+      if (won) {
+
+        stopTimer();
+
+        messageElement.textContent =
+          `🎉 تبریک! جورچین را در ${moves} حرکت حل کردی!`;
+
+      }
+
+    }
+
+
+    shufflePuzzle();
+
+  </script>
+
+</body>
+</html>
